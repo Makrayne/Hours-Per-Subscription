@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en-US">
+<head>
+    <title>Hours Per Subscription</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"><meta charset="utf-8">
+    <!--<link rel="stylesheet" href="https://cdn.simplecss.org/simple.min.css">-->
+    <link rel="stylesheet" href="./simple.min.css">
+    <style>
+        body{width:60vw;margin:auto;font-family:sans-serif}
+        .boxes{display:grid;grid-template-columns:repeat(2, 1fr);}
+        .boxes div:nth-child(2){text-align:right;}
+        label{display:inline;} input{width:60%} button{width:100%}
+    
+        #breakdownBar{background: #555;height: 1em;width: 100%;border-radius: 20px;border: 1px solid #656565;margin-bottom:1em}
+
+        td:nth-child(2),th:nth-child(1){border-right-width:3px;}
+        table {overflow: hidden;margin:auto;width:100%} tr:nth-child(even){background-color: #444;} th{background:inherit;}
+        .subCost {} .subName {border-right-width:0px !important;width: 0px;} .cT{border-left-width:0px;padding-left: 0px;width: 10px;}
+        td{max-width:936vw;overflow-x:clip}
+        .footer{font-size:.9rem;color:var(--text-light);text-align:center}
+        footer{padding: 1em !important; margin-top:1em !important} details[open] > summary{margin-bottom:0px;}
+        samp {color:var(--preformatted); font-size:.9rem; background:#ff00001c; width:100%; display:block; margin-bottom:.5em; padding:5px; border:2px maroon solid; border-radius:5px;}
+        samp:empty { display: none; }
+
+        @media only screen and (max-width:1000px) {body{width:100vw} }
+        @media only screen and (max-width:600px) {input{width:90%}td,th{padding-left:2px;padding-right:2px;max-width:25vw;white-space: nowrap} h{display: none}}
+        @media (prefers-color-scheme:light) {tr:nth-child(even){background-color:#ddd;}}
+        @media only screen and (min-width:500px) {.subName{width: 15% !important;}}
+    </style>
+</head>
+<main>
+    <div id="valueUpdater">
+        <form><fieldset><legend>Base Values</legend>
+            <div class="boxes values">
+                <div><label for="hourlyPay">Pay per hour: </label><input type="number" step=0.01 id="hourlyPay" value="7.25"></div>
+                <div class="r"><label for="hours">Yearly hours: </label><input type="number" step=0.01 id="hours" value="2080"></div>
+            </div>
+            <button id="updateValues" onclick="buildSubList()" type="button">Update Values</button>
+        </fieldset></form>
+    </div>
+    <div id="subscriptionAdder">
+        <form><fieldset><legend>Subscriptions</legend>
+            <div class="boxes">
+                <div><label for="serviceNameAdd">Service Name: </label><input type="text" id="serviceNameAdd" placeholder="Netflix"></div>
+                <div class="r"><label for="serviceCostAdd">Monthly Cost: </label><input type="number" step=0.01 id="serviceCostAdd" placeholder="14.99"></div>
+            </div>
+            <button id="addService" onclick="addServiceClick()" type="button">Modify</button>
+            <div class="footer">Change costs by using the same service name<br>Remove services by setting the cost to 0</div>
+        </fieldset></form>
+    </div>
+    <div>
+        <div id="breakdownBar"></div>
+        <div id="subList"></div>
+    </div>
+    <div id="save">
+        <form><fieldset><legend>Save/Load</legend>
+            <div>
+                <textarea id="saveBox" placeholder="Copy the output or paste what you've saved" rows="5"></textarea>
+                <samp id="errorBox"></samp>
+            </div>
+            <button id="addService" onclick="saveLoad()" type="button">Save/Load</button>
+        </fieldset></form>
+    </div>
+    <script>
+        subscriptionServices={}
+        function saveLoad(){
+            saveBox=document.getElementById("saveBox");
+            if (saveBox.value==""){ saveBox.value=JSON.stringify(subscriptionServices); errorBox.innerHTML="";
+            } else {
+                try { subscriptionServices=JSON.parse(saveBox.value); buildSubList();
+                } catch (e) { errorBox.innerHTML=e+'\nEnsure all quotation marks (") are matched, there is a comma between each item, & there is a colon (:) between each name & cost'; }
+            }
+        }
+        function addServiceClick(){
+            serviceNameAdd=document.getElementById("serviceNameAdd").value;
+            serviceCostAdd=document.getElementById("serviceCostAdd").value;
+            if (serviceNameAdd==""||serviceCostAdd=="") { // Pass
+            } else if (serviceCostAdd==0){delete subscriptionServices[serviceNameAdd];
+            } else { subscriptionServices[serviceNameAdd]=Number(serviceCostAdd); }
+            // console.log(subscriptionServices)
+            buildSubList();
+        } 
+        colorList=["mediumvioletred","lightseagreen","royalblue","pink","cyan","purple","orange","azure","crimson","sandybrown",
+                   "limegreen","rebeccapurple","tomato","darkturquoise","deepskyblue","gold","deeppink","orchid","indigo","skyblue"];
+        function buildSubList(){
+            subList=document.getElementById("subList");
+            serviceNames=Object.keys(subscriptionServices) || ["None"];
+            subList.innerHTML=""; pay=Number(document.getElementById("hourlyPay").value); hours=Number(document.getElementById("hours").value);
+            col=' scope="col"';
+            sn=' class="subName"'; st=' class="subTime"'; sc=' class="subCost"'; sd=' class="subDays"';
+             o=`</summary><table><tbody><tr><th${col}${sn}>Name</th><th class="cT"></th><th${col}>Cost</th><th${col}>Hours</th><th${col}>Days</th></tr>`;
+            subH=[]; subH.push('<details open><summary>Yearly'+o);
+            subM=[]; subM.push('<details><summary>Monthly'+o);
+            totalMoney=hours*pay; hoursM=hours/12; monthMoney=hoursM*pay;
+            
+            percentN=0; gradientElements=[]; gradientElements.push("linear-gradient(to right");
+            subCosts=0; subTimes=0; subDays=0; sCs=0; subTimesM=0; subDaysM=0;
+            for (i in serviceNames){
+                serviceName=serviceNames[i]; sC=subscriptionServices[serviceName] || 0;
+                serviceCost=sC*12; servicePercent=serviceCost/totalMoney; servicePercent*=100;
+                subTime=serviceCost/pay; subDay=subTime/8; subTimeM=sC/pay; subDayM=subTimeM/8;
+                
+                o=`<tr><th${sn}>${serviceName}</th> <td style="color:${colorList[i]}" class="cT">█</td>`
+                Year=`<td${sc}>\$${serviceCost.toLocaleString()}</td> <td${st}>${subTime.toLocaleString()} <h>hours</h></td> <td${sd}>${subDay.toLocaleString()} <h>days</h></td></tr>`
+                Month=`<td${sc}>\$${sC.toLocaleString()}</td> <td${st}>${subTimeM.toLocaleString()} <h>hours</h></td> <td${sd}>${subDayM.toLocaleString()} <h>days</h></td> </tr>`
+                
+                subH.push(o+Year); subM.push(o+Month); gradientElements.push(`${colorList[i]} ${percentN}%,${colorList[i]} ${percentN+servicePercent}%`)
+                percentN+=servicePercent; subCosts+=serviceCost; subTimes+=subTime; subDays+=subDay; sCs+=sC; subTimesM+=subTimeM; subDaysM+=subDayM
+            } 
+            gradientElements.push(`#555 ${percentN}%)`); o='</tbody><tfoot><tr><th'+sn+'>Total</th><td class="cT"></td>'; c="</tfoot></table></details>"
+            subH.push(o+`<td${sc}>\$${subCosts.toLocaleString()}</td> <td${st}>${subTimes.toLocaleString()} <h>hours</h></td> <td${sd}>${subDays.toLocaleString()} <h>days</h></td></tr>`+c)
+            subM.push(o+`<td${sc}>\$${sCs.toLocaleString()}</td> <td${st}>${subTimesM.toLocaleString()} <h>hours</h></td> <td${sd}>${subDaysM.toLocaleString()} <h>days</h></td></tr>`+c)
+            
+            subList.innerHTML=subH.join(""); subList.innerHTML+=subM.join("");
+            barGradient=gradientElements.join(","); breakdownBar=document.getElementById("breakdownBar"); breakdownBar.style.background=barGradient
+        }
+    </script>
+    </main>
+    <footer>
+        Inspired by <a href="https://is-it-worth-it-kappa.vercel.app/">Is It Worth It?</a> by Ali Cicek<br>
+        This version is written in pure JavaScript and uses <a href="https://simplecss.org">Simple.css</a>
+    </footer>
+</html>
